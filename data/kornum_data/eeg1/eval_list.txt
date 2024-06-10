@@ -1,0 +1,1 @@
+C:/02466/02466-autoencoder/data/n0001_eeg1.mat	3601
