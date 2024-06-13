@@ -3,7 +3,7 @@ import h5py
 from dataGen import DataGenerator3
 
 class load_data:
-    def __init__(self, eeg_filelist=None, eog_filelist=None, emg_filelist=None, data_shape_2=np.array([29, 128]), seq_len = 20, nclasses = 4, artifact_detection = False, artifacts_label = 3, shuffle=False):
+    def __init__(self, eeg_filelist=None, eog_filelist=None, emg_filelist=None, data_shape_2=np.array([29, 128]), seq_len = 20, nclasses = 4, artifact_detection = False, artifacts_label = 4, shuffle=False):
 
         # Init params
 
@@ -61,6 +61,7 @@ class load_data:
         self.emg_data.normalize_by_signal(self.emg_meanX, self.emg_stdX)
 
         self.X2 = np.stack((self.eeg_data.X2, self.eog_data.X2, self.emg_data.X2), axis=-1) # merge and make new dimension
+        self.label = np.stack((self.eeg_data.label,self.eog_data.label,self.emg_data.label), axis=-1)
 
     # read in a list of file
     def read_file_list(self, filelist):

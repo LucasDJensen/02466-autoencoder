@@ -1,16 +1,14 @@
 import os
 import tensorflow as tf
 import matplotlib.pyplot as plt
-from sklearn.manifold import TSNE
-
 import shutil, sys
-from datetime import datetime
+
+from sklearn.manifold import TSNE
+from sklearn.metrics import r2_score
 
 from Autoencoder import AutoencoderBasic
 from config import Config
-
 from load_data import load_data
-
 from _globals import HPC_STORAGE_PATH, HPC_STORAGE_KORNUM_FILE_LIST_PATH
 
 
@@ -35,7 +33,6 @@ emg_eval_data=os.path.join(in_dir, "emg/eval_list.txt") #"file containing the li
 
 
 config = Config()
-
 if config.artifact_detection == True:
     config.artifacts_label = config.nclasses_data - 1 # right now the code probably just works when the artifact label is the last one
     config.nclasses_model = 1
@@ -50,9 +47,6 @@ elif config.artifact_detection == False:
         config.nclasses_model = config.nclasses_data
         config.artifacts_label = config.nclasses_data - 1 # right now the code probably just works when the artifact label is the last one
 
-
-# config.learning_rate = 1e-4 / FLAGS.batch_size # scaling by btach size because now I'm normalizing the loss by the number of elements in batch
-#config.l2_reg_lambda = config.l2_reg_lambda / config.batch_size # scaling by btach size because now I'm normalizing the loss by the number of elements in batch
 
 train_data = load_data( eeg_filelist=os.path.abspath(eeg_train_data),
                         eog_filelist=os.path.abspath(eog_train_data),
@@ -75,16 +69,34 @@ val_data = load_data(eeg_filelist=os.path.abspath(eeg_eval_data),
 
 # Training
 # ==================================================
-xtrain=train_data.X2
-xtrain=tf.reshape(xtrain, [-1, config.frame_seq_len, config.ndim,1])
+xtrain=train_data.X2 # data should have been normalized in load_data
 xval=val_data.X2
-xval=tf.reshape(xval, [-1, config.frame_seq_len, config.ndim,1])
-ABmodel=AutoencoderBasic(config=config,xtrain=xtrain,xval=xval)
+
+#num_nan = tf.reduce_sum(tf.cast(tf.math.is_nan(features), tf.int32))
+#print(num_nan.numpy())
+
+#xtrain=tf.reshape(xtrain, [-1, config.frame_seq_len, config.ndim,1])
+#xval=tf.reshape(xval, [-1, config.frame_seq_len, config.ndim,1])
+
+ABmodel=AutoencoderBasic(config=config,xtrain=xtrain,xval=xval,latent_dim=20)
 autoencoder,encoder=ABmodel.model()
 fitted_model=autoencoder.fit(xtrain, xtrain, epochs=config.training_epoch, batch_size=config.batch_size,
                         validation_data=(xval,xval))
 
+reconstructions = autoencoder.predict(xval)
+r2_scores=[]
+for c in range(3):
+
+    r2_score_channel=[]
+    for i in range(xval.shape[0]):
+        r2_score_channel.append(r2_score(tf.squeeze(xval[i,:,:,c]), tf.squeeze(reconstructions[i,:,:,c])))
+
+    r2_scores.append(r2_score_channel)
+
+average_r2_score = tf.reduce_mean(r2_scores,axis=1)
+
 autoencoder.save('autoencoder_model.h5')
+encoder.save('encoder.h5')
 
 # Plot training and validation loss:
 train_loss = fitted_model.history['loss']
@@ -100,16 +112,16 @@ plt.legend()
 plt.savefig("BasicAutoencoder_train_val_loss.png")
 
 ## Obtaining embeddings:
-embed = encoder.predict(xtrain)
-print("Shape of embedding vectors:", embed.shape)
+# embed = encoder.predict(xtrain)
+# print("Shape of embedding vectors:", embed.shape)
 
-tsne = TSNE(n_components=2, random_state=42)
-reduced_embed = tsne.fit_transform(embed)
+# tsne = TSNE(n_components=2, random_state=42)
+# reduced_embed = tsne.fit_transform(embed)
 
 # Plot the embeddings
-plt.figure(figsize=(10, 6))
-plt.scatter(reduced_embed[:, 0], reduced_embed[:, 1], s=5)
-plt.title('t-SNE visualization of embeddings')
-plt.xlabel('Component 1')
-plt.ylabel('Component 2')
-plt.savefig("tsne_embedding.png")
+# plt.figure(figsize=(10, 6))
+# plt.scatter(reduced_embed[:, 0], reduced_embed[:, 1], s=5)
+# plt.title('t-SNE visualization of embeddings')
+# plt.xlabel('Component 1')
+# plt.ylabel('Component 2')
+# plt.savefig("tsne_embedding.png")

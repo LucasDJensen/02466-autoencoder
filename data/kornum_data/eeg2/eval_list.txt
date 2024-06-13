@@ -1,1 +1,2 @@
-C:/02466/02466-autoencoder/data/n0001_eeg2.mat	3601
+C:/02466/02466-autoencoder/data/n0013_eeg2.mat	3602
+C:/02466/02466-autoencoder/data/n0014_eeg2.mat	3601

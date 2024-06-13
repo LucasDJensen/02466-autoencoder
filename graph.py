@@ -1,8 +1,8 @@
 import tensorflow as tf
 import matplotlib.pyplot as plt
-
+import numpy as np
 # Load trained model
-autoencoder = tf.keras.models.load_model('BiLSTMautoencoder_model.h5')
+autoencoder = tf.keras.models.load_model('autoencoder_model.h5')
 
 # Plot training and validation loss:
 train_loss = autoencoder.history['loss']
@@ -17,3 +17,7 @@ plt.title('Training vs. Validation Loss')
 plt.legend()
 plt.show()
 
+with open("r2_scores.npy", "rb") as f:
+    a=np.load(f)
+
+print(a)

@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import tensorflow as tf
+from sklearn.metrics import r2_score
 
 import shutil, sys
 from datetime import datetime
@@ -53,27 +54,32 @@ test_data = load_data( eeg_filelist=os.path.abspath(eeg_test_data),
 
 xtest=test_data.X2
 #xtest=tf.reshape(xtest, [-1, config.frame_seq_len, config.ndim,1])
-xtest=tf.reshape(xtest, [-1, config.frame_seq_len, config.ndim])
-
 
 ### Open saved model
 
-autoencoder = tf.keras.models.load_model('BiLSTMautoencoder_model.h5')
+autoencoder = tf.keras.models.load_model('autoencoder_model.h5')
 
 reconstructions = autoencoder.predict(xtest)
-loss = tf.keras.losses.mae(reconstructions,xtest)
 
-# Calculate the reconstruction error
-#reconstruction_errors = np.mean(np.square(X_test - X_test_pred), axis=(1, 2))
+r2_scores=[]
+for c in range(3):
 
-# Define a threshold for anomalies (e.g., 95th percentile of the reconstruction error)
-#threshold = np.percentile(reconstruction_errors, 95)
+    r2_score_channel=[]
+    for i in range(xtest.shape[0]):
+        r2_score_channel.append(r2_score(tf.squeeze(xtest[i,:,:,c]), tf.squeeze(reconstructions[i,:,:,c])))
 
-# Identify anomalies
-#anomalies = reconstruction_errors > threshold
+    r2_scores.append(r2_score_channel)
 
-plt.hist(np.asarray(loss).flatten(), bins=50)
-plt.xlabel("Train loss")
-plt.ylabel("No of examples")
-plt.show()
+print(r2_scores)
+average_r2_score = np.mean(r2_scores,axis=1)
+
+print(f'Average R^2 score for each channel: {average_r2_score}')
+
+
+# loss = tf.keras.losses.mae(reconstructions,xtest)
+
+# plt.hist(np.asarray(loss).flatten(), bins=50)
+# plt.xlabel("Train loss")
+# plt.ylabel("No of examples")
+# plt.show()
 #plt.savefig("Test loss distribution")
