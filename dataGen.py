@@ -21,7 +21,9 @@ class DataGenerator3:
         self.file_sizes = file_sizes
 
         self.data_shape_2 = data_shape_2
+        self.data_shape_1 = np.array([512])
         self.X2 = None
+        self.X1 = None
         self.y = None
         self.label = None
 
@@ -42,12 +44,14 @@ class DataGenerator3:
     # read data from mat files in list_of_files
     def read_mat_filelist(self):
         self.X2 = np.ndarray([self.data_size, self.data_shape_2[0], self.data_shape_2[1]],dtype=np.float32)
+        self.X1 = np.ndarray([self.data_size, self.data_shape_1[0]],dtype=np.float32)
         self.y = np.ndarray([self.data_size, self.Ncat],dtype=np.float32)
         self.label = np.ndarray([self.data_size],dtype=np.float32)
         count = 0
         for i in range(len(self.list_of_files)):
             # read in one file
-            X2, y, label = self.read_mat_file(self.list_of_files[i].strip())
+            X1, X2, y, label = self.read_mat_file(self.list_of_files[i].strip())
+            self.X1[count : count + len(X1)] = X1.astype(np.float32)
             self.X2[count : count + len(X2)] = X2.astype(np.float32)
             self.y[count : count + len(X2)] = y.astype(np.float32)
             self.label[count : count + len(X2)] = label.astype(np.float32)
@@ -66,22 +70,42 @@ class DataGenerator3:
         """
         data = h5py.File(filename,'r')
         data.keys()
+        X1 = np.array(data['X1'])
         X2 = np.array(data['X2']) # time-frequency input
-        X2 = np.transpose(X2, (2, 1, 0))  # rearrange dimension
-        # X2 = X2[:,:,1:] # excluding 0-th element
         y = np.array(data['y']) # one-hot encoding labels
+        label = np.array(data['label']) # labels
+
         if self.artifact_detection == True:
             y_arts = y[self.artifacts_label]
             y_no_arts = (y_arts != 1).astype(float)
             y = np.vstack([y_no_arts, y_arts])
+        else:
+            mask = (label != self.artifacts_label +1).squeeze()
+            y = y[:,mask]
+            X1 = X1[:,mask]
+            X2 = X2[:,:,mask]
+            label = label[:,mask]
+        
+        X1 = np.transpose(X1, (1, 0))
+        X2 = np.transpose(X2, (2, 1, 0))  # rearrange dimension
         y = np.transpose(y, (1, 0))  # rearrange dimension
-        label = np.array(data['label']) # labels
         label = np.transpose(label, (1, 0))  # rearrange dimension
         label = np.squeeze(label)
 
-        return X2, y, label
+        return X1, X2, y, label
+    
+    def normalize_by_signal_X1(self, meanX1, stdX1):
+        count = 0
+        for i in range(len(self.list_of_files)):
+            X1 = self.X1[count: count + self.file_sizes[i]]
+            meanX1_i = meanX1[self.list_of_files[i]]
+            stdX1_i = stdX1[self.list_of_files[i]]
 
-    def normalize_by_signal(self, meanX2, stdX2):
+            X1 = (X1 - meanX1_i) / stdX1_i
+            self.X1[count: count + self.file_sizes[i]] = X1
+            count += self.file_sizes[i]
+
+    def normalize_by_signal_X2(self, meanX2, stdX2):
         # data normalization for time-frequency input here
         count = 0
         for i in range(len(self.list_of_files)):

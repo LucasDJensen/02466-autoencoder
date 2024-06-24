@@ -4,8 +4,8 @@ class Config(object):
         self.sub_seq_len = 10  # subsequence length
         self.nsubseq = 8 #10
 
-        self.learning_rate = 1e-4
-        self.training_epoch = 20 #10*self.sub_seq_len*self.nsubseq
+        self.learning_rate = 0.0001
+        self.training_epoch = 10 #10*self.sub_seq_len*self.nsubseq
         self.batch_size = 32 #8
 
         # spectrogram size
